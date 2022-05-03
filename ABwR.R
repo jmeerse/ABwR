@@ -5,7 +5,7 @@ install.packages("pitchRx")
 library(tidyverse)
 library(Lahman)
 library(baseballr)
-library(readr)
+
 
 
 
@@ -231,3 +231,50 @@ hrs <- statcast2017 %>%
 
 #making tables
 with(hrs, table(balls, strikes))
+
+#Ch 2 
+#looking at Warren Spahn
+spahn <- read_csv("baseball_R/data/spahn.csv")
+
+spahn %>% summarize(Min = min(ERA),
+                    Q1 = quantile(ERA, .25),
+                    Med = median(ERA),
+                    Q3 = quantile(ERA, .75),
+                    Max = max(ERA))
+
+#when did Spahn have his lowest ERA?
+spahn %>% filter(ERA == min(ERA)) %>% select(Age, ERA)
+
+#add FIP to spahn
+spahn %>% mutate(FIP = (13*HR + 3*BB - 2*SO)/IP) -> spahn
+
+#arrange by FIP and show 10 years
+spahn %>% 
+  arrange(FIP) %>% 
+  select(Year, Age, W, L, ERA, FIP) %>% 
+  slice(1:10)
+
+#filter to just 2 teams
+spahn %>% filter(Tm == "BSN" | Tm == "MLN") -> spahn1
+
+#compare between teams
+spahn1 %>% 
+  group_by(Tm) %>% 
+  summarise(mean_W.L = mean(W.L, na.rm = TRUE),
+            mean_ERA = mean(ERA),
+            mean_WHIP = mean(WHIP),
+            mean_FIP = mean(FIP)
+  )
+
+#create vector from vectors
+W <- spahn$W
+L <- spahn$L
+100*W/(W+L) -> Win.Pct
+
+Year <- 1946:1966  #sequence of consecutive integers
+Age <- Year - 1921
+
+plot(Age, Win.Pct)
+
+#pull particular values from Year based on logical conditions
+Year[(W > 20) & (Win.Pct > 60)]

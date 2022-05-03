@@ -278,3 +278,47 @@ plot(Age, Win.Pct)
 
 #pull particular values from Year based on logical conditions
 Year[(W > 20) & (Win.Pct > 60)]
+
+
+#making a dataframe
+Year2 <- 2008:2017
+NL <- c("PHI", "PHI", "SFN", "SLN", "SFN", "SLN", "SFN", "NYN", "CHN", "LAN")
+AL <- c("TBA", "NYA", "TEX", "TEX", "DET", "BOS", "KCA", "KCA", "CLE", "HOU")
+Winner <- c("NL", "AL", "NL", "NL", "NL", "AL", "NL", "AL", "NL", "AL")
+N_Games <- c(5,6,5,7,4,7,7,5,7,7)
+
+WS_results <- tibble(Year = Year2, NL_Team = NL, AL_Team = AL, N_Games = N_Games, Winner = Winner)
+
+#where does NY show up
+grep("NY", c(AL, NL), value = TRUE)
+
+#num of WS winners by league
+WS_results %>% group_by(Winner) %>% summarise(N = n()) -> WS
+
+#graph of results - geom_col graphs each frequency value in a column
+ggplot(WS, aes(x=Winner, y = N)) + geom_col()
+
+#looking at factors
+WS_results %>% group_by(NL_Team) %>% summarise(N = n())
+
+#redefine NL_team from character to factor, and by division  -- if re-run above command, it will be in order by division
+WS_results <- WS_results %>% 
+  mutate(NL_Team = factor(NL_Team, 
+                          levels = c("NYN", "PHI", "CHN", "SLN", "LAN", "SFN")))
+
+#not quite sure what all the output from this structure function does
+str(WS_results$NL_Team)
+
+#lists
+world_series <- list(Winner = Winner, Number.Games = N_Games, 
+                     Seasons = "2008 to 2017")
+world_series$Number.Games #shows values in this variable
+world_series[[2]] #shows value of 2nd component in list
+pluck(world_series, "Number.Games")  #another way
+world_series["Number.Games"] #another another way
+
+#get a vector from a dataframs
+WS_results$N_Games #returns the values 
+pull(WS_results, N_Games) #does the same thing
+
+

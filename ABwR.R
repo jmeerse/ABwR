@@ -345,3 +345,42 @@ hr_rates <- function(age, hr, ab) {
 hr_rates(MM$Age, MM$HR, MM$AB)
 
 plot(hr_rates(MM$Age, MM$HR, MM$AB))
+
+#batting in the 1960s
+Batting %>% 
+  filter(yearID >=1960, yearID<=1969) -> Batting_60
+
+#sum of HRs by player
+Batting_60 %>% 
+  group_by(playerID) %>% summarise(HR = sum(HR)) -> hr_60
+
+#arrange descending
+hr_60 %>% 
+  arrange(desc(HR)) -> hr_60
+
+#could do above in a single pipeline
+Batting %>% filter(yearID>=2010, yearID<=2019) %>% 
+  group_by(playerID) %>% summarise(HR = sum(HR)) %>% 
+  arrange(desc(HR)) -> hr_20
+
+#function to find HR leader 
+hr_leader <- function(data) {
+  data %>% group_by(playerID) %>% summarise(HR = sum(HR)) %>% 
+    arrange(desc(HR)) %>% head(1)
+}
+
+Batting %>% 
+  mutate(decade = 10*floor(yearID/10)) %>% 
+  split(pull(.,decade)) %>% 
+  map_df(hr_leader, .id = "decade")
+
+#hrs and so for players with over 5000 career AB
+Batting %>% group_by(playerID) %>% 
+  summarize(tAB = sum(AB, na.rm = TRUE),
+            tHR = sum(HR, na.rm = TRUE),
+            tSO = sum(SO, na.rm = TRUE)) -> long_careers
+Batting_5000 <- filter(long_careers, tAB >= 5000)
+
+#graph hr/ab vs so/ab with trendline
+ggplot(Batting_5000, aes(x = tHR/tAB, y = tSO/tAB))+geom_point() + geom_smooth()
+

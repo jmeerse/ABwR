@@ -322,3 +322,26 @@ WS_results$N_Games #returns the values
 pull(WS_results, N_Games) #does the same thing
 
 
+#playoff from Lahman (seriespost) filtered to WS graphed 
+ws <- filter(SeriesPost, yearID >= 1903, 
+             round == "WS", wins + losses < 8)
+ggplot(ws, aes(x = wins + losses))+ 
+  geom_bar(fill='blue') + 
+  labs(x = "Number of games", y = "Frequency")
+
+
+Batting %>%
+  filter(playerID == "mantlmi01") -> MM
+
+MM <- MM %>% mutate(Age = yearID - 1931)
+
+#function to calculate HR rates by age and AB
+hr_rates <- function(age, hr, ab) {
+  rates <- round(100*hr / ab, 1)
+  list(x = age, y = rates)
+}
+
+#apply function to Mickey Mantle
+hr_rates(MM$Age, MM$HR, MM$AB)
+
+plot(hr_rates(MM$Age, MM$HR, MM$AB))

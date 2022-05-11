@@ -5,8 +5,9 @@ install.packages("pitchRx")
 library(tidyverse)
 library(Lahman)
 library(baseballr)
+library(ggrepel)
 
-
+crcblue <- "#2905a1"
 
 
 Batting %>%
@@ -381,6 +382,254 @@ Batting %>% group_by(playerID) %>%
             tSO = sum(SO, na.rm = TRUE)) -> long_careers
 Batting_5000 <- filter(long_careers, tAB >= 5000)
 
+
 #graph hr/ab vs so/ab with trendline
 ggplot(Batting_5000, aes(x = tHR/tAB, y = tSO/tAB))+geom_point() + geom_smooth()
 
+
+#ch 2 exercises
+SB <- c(1406, 938, 897, 741, 738, 689, 506, 504, 474)
+CS <- c(335, 307, 212, 195, 109, 162, 136, 131, 114)
+G <- c(3081, 2616, 3034, 2826, 2476, 2649, 2599, 2683, 2379)
+SB.attempt <- SB + CS
+Success.Rate <- SB / SB.attempt
+SB.Game <- SB / G
+ggplot(data.frame(Success.Rate, SB.Game),aes(x = SB.Game, y = Success.Rate))+geom_point()
+
+outcomes <- c("Single", "Out", "Out", "Single", "Out", "Double", "Out", "Walk", "Out", "Single")
+table(outcomes)
+f.outcomes <- factor(outcomes,
+                     levels = c("Out", "Walk", "Single", "Double"))
+
+career.pitching <- Pitching %>% 
+  group_by(playerID) %>% 
+  summarise(SO = sum(SO, na.rm = TRUE),
+            BB = sum(BB, na.rm = TRUE), 
+            IPouts = sum(IPouts, na.rm = TRUE),
+            midyear = median(yearID, na.rm = TRUE))
+
+career.pitching %>% filter(IPouts >= 10000) -> career.10000
+
+ggplot(career.10000, aes(x = midyear, y = SO / BB)) + geom_point()
+
+#Chapter 3
+hof <- read_csv("baseball_R/data/hofbatting.csv")
+
+hof <- hof %>% mutate(MidCareer = (From + To)/2,
+                      Era = cut(MidCareer,
+                                breaks = c(1800, 1900, 1919, 1941,
+                                           1960, 1976, 1993, 2050),
+                                labels = c("19th Century", "Dead Ball",
+                                           "Lively Ball", "Integration",
+                                           "Expansion", "Free Agency", 
+                                           "Long Ball")))
+hof_eras <- summarise(group_by(hof, Era), N = n())
+
+#bar chart
+ggplot(hof, aes(x = Era)) + geom_bar() +
+  xlab("Baseball Era") +
+  ylab("Frequency")+
+  ggtitle("Era of the Nonpitching Hall of Famers")
+#could also do ggplot(hof_eras, aes(x = Era, y = N)) + geom_col()
+
+#same, but with points and using hof_eras
+ggplot(hof_eras, aes(x = Era, y = N)) + geom_point() +
+  xlab("Baseball Era") +
+  ylab("Frequency")+
+  ggtitle("Era of the Nonpitching Hall of Famers")+
+  coord_flip()
+
+#this will make a pdf of 2 graphs - 
+pdf("graphs.pdf")
+ggplot(hof, aes(x=Era)) + geom_bar()
+ggplot(hof_eras, aes(x = Era, y = N)) + geom_point()
+dev.off()
+
+
+#numeric graphs
+#one-dimensional scatterplot
+ggplot(hof, aes(x = OPS, y = 1)) + geom_jitter(height = 0.6) +
+  ylim(-1, 3) + 
+  theme(axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank()) + 
+  coord_fixed(ratio = 0.05)
+
+#histogram
+ggplot(hof, aes(x = OPS)) + 
+  geom_histogram(breaks = seq(0.4, 1.2, by = 0.1),
+                 color = "blue", fill = "white")
+
+#scatterplot use ggrepel to avoid overlapping labels - might need library
+ggplot(hof, aes(x = MidCareer, y = OPS)) +
+  geom_point() + 
+  geom_smooth() +
+  geom_text_repel(data = filter(hof, OPS > 1.05 | OPS < 0.5), 
+                  aes(MidCareer, OPS, label = Player))
+
+
+p <- ggplot(hof, aes(x = OBP, y = SLG)) + geom_point() +
+  xlim(0.25, 0.50) + ylim(0.28, 0.75) + 
+  xlab("On Base Percentage") + ylab("Slugging Percentage")
+
+#use scale_x_continuous to do both
+p <- ggplot(hof, aes(x = OBP, y = SLG)) + geom_point() +
+  scale_x_continuous("On Base Percentage", limits = c(0.25, 0.50)) +
+  scale_y_continuous("Slugging Percentage", limits = c(0.28, 0.75))
+
+#add tiers for OPS = OBP + SLG and text
+p <- ggplot(hof, aes(x = OBP, y = SLG)) + geom_point() +
+  scale_x_continuous("On Base Percentage", limits = c(0.25, 0.50)) +
+  scale_y_continuous("Slugging Percentage", limits = c(0.28, 0.75)) +
+  geom_abline(slope = -1, intercept = seq(0.7, 1, by = 0.1)) +
+  annotate("text",
+           x = rep(.27, 4), y = c(.42, .52, .62, .72),
+           label = paste("OPS = ", 
+                         c(0.7, 0.8, 0.9, 1.0)))
+
+#or could make a dataframe of what you want for labels
+ops_labels <- tibble(
+  OBP = rep(0.3, 4), 
+  SLG = seq(0.4, 0.7, by = 0.1), 
+  label = paste("OPS = ", OBP + SLG)
+)
+
+#and use the dataframe with the geom_text function
+p <- ggplot(hof, aes(x = OBP, y = SLG)) + geom_point() +
+  scale_x_continuous("On Base Percentage", limits = c(0.25, 0.50)) +
+  scale_y_continuous("Slugging Percentage", limits = c(0.28, 0.75)) +
+  geom_abline(slope = -1, intercept = seq(0.7, 1, by = 0.1)) +
+  geom_text(data = ops_labels, hjust = "right", 
+            aes(label = label))
+
+p + geom_text_repel(data = filter(hof, OBP + SLG > 1), 
+                    aes(OBP, SLG, label = Player))
+
+#numeric and factor variable graphs
+hof <- mutate(hof, hr_rate = HR / AB)
+
+ggplot(hof, aes(x = hr_rate, y = Era)) + 
+  geom_jitter(height = 0.1)
+
+#boxplots of same
+ggplot(hof, aes(x = hr_rate, y = Era)) + geom_boxplot()
+
+#function to get info for any player in Master data and fix age
+get_birthyear <- function(Name) {
+  Names <- unlist(strsplit(Name, " "))
+  People %>% 
+    filter(nameFirst == Names[1],
+           nameLast == Names[2]) %>% 
+    mutate(birthyear = ifelse(birthMonth >= 7,
+                              birthYear + 1, birthYear),
+           Player = paste(nameFirst, nameLast)) %>% 
+    select(playerID, Player, birthyear)
+}
+
+#get info and make dataframe - can use this for any player
+PlayerInfo <- bind_rows(get_birthyear("Babe Ruth"),
+                        get_birthyear("Hank Aaron"),
+                        get_birthyear("Barry Bonds"),
+                        get_birthyear("Alex Rodriguez")
+                        )
+
+
+Batting %>% 
+  inner_join(PlayerInfo, by = "playerID") %>% 
+  mutate(Age = yearID - birthyear) %>% 
+  select(Player, Age, HR) %>% 
+  group_by(Player) %>% 
+  mutate(CHR = cumsum(HR)) -> HRdata
+
+#HR by age
+ggplot(HRdata, aes(x = Age, y = CHR, linetype = Player, 
+                   color = Player)) + geom_line()
+
+#McGuire Sosa race
+sosa_id <- People %>% 
+  filter(nameFirst == "Sammy", nameLast == "Sosa") %>% 
+  pull(retroID)
+
+mac_id <- People %>% 
+  filter(nameFirst == "Mark", nameLast == "McGwire") %>% 
+  pull(retroID)
+
+all1998 <- read_csv("baseball_R/data/all1998.csv", 
+                  col_names = pull(fields, Header))
+
+hr_race <- all1998 %>% filter(BAT_ID %in% c(sosa_id, mac_id))
+remove(all1998)
+
+library(lubridate)
+
+cum_hr <- function(d) {
+  d %>% 
+    mutate(Date = ymd(str_sub(GAME_ID, 4, 11))) %>% 
+    arrange(Date) %>% 
+    mutate(HR = ifelse(EVENT_CD == 23, 1, 0),
+           cumHR = cumsum(HR)) %>% 
+    select(Date, cumHR)
+}
+
+hr_ytd <- hr_race %>% 
+  split(pull(., BAT_ID)) %>% 
+  map_df(cum_hr, .id = "BAT_ID") %>% 
+  inner_join(People, by = c("BAT_ID" = "retroID"))
+
+ggplot(hr_ytd, aes(x = Date, y = cumHR, 
+                   linetype = nameLast, color = nameLast)) + 
+  geom_line() + 
+  geom_hline(yintercept = 62, color = crcblue) +
+  annotate("text", ymd("1998 -04-15"), 65,
+           label = "62", color = crcblue) +
+  ylab("Home runs in the Season") +
+  ggtitle("McGwire vs Sosa 1998")
+
+#ch 3 exercises
+hofpitching <- hofpitching %>% 
+  mutate(BF.group = cut(BF, 
+                        c(0, 10000, 15000, 20000, 30000),
+                        labels= c("Less than 10000", "10000 to 15000", 
+                                  "15000 to 20000", "more than 20000")))
+
+#frequency table of BF.group
+hofpitching %>% group_by(BF.group) %>% summarise(N = n())
+
+#bar graph of BF.group
+ggplot(hofpitching, aes(x = BF.group)) + geom_bar()
+
+#in the 20000+ group
+hofpitching %>% filter(BF.group == "more than 20000") %>% count()
+
+#another plot of BF.group
+ggplot(hofpitching, aes(x = BF, y = BF.group)) + geom_boxplot()
+
+#or
+hofpitching %>% group_by(BF.group) %>% summarise(N = n()) -> S
+ggplot(S, aes(x = BF.group, y = N)) + geom_col()
+ggplot(S, aes(x = BF.group, y = N)) + geom_point() + 
+  ylim(0, 30) + coord_flip()
+
+#WAR for HOF pitchers
+ggplot(hofpitching, aes(x = WAR)) + geom_histogram()
+
+#identify the two high outliers
+library(ggrepel)
+
+ggplot(hofpitching, aes(x = WAR)) + geom_boxplot() + 
+  geom_text_repel(data = filter(hofpitching, WAR > 125), 
+                aes(WAR, 0, label = `...2`))
+
+#War per season
+hofpitching <- hofpitching %>% 
+  mutate(WAR.season = WAR / Yrs)
+
+#one d scatterplot by bf.group
+ggplot(hofpitching, aes(x=WAR.season, y = BF.group)) + geom_jitter(height = 0.1)
+
+#add boxplots - first geom is "lowest", next is on top
+ggplot(hofpitching, aes(x=WAR.season, y = BF.group)) + 
+  geom_boxplot() + 
+  geom_jitter(height = 0.1) +
+  geom_text_repel(data = filter(hofpitching, WAR.season > 7), 
+                  aes(WAR.season, BF.group, label = `...2`))
